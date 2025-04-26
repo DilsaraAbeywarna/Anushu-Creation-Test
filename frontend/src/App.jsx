@@ -1,14 +1,15 @@
-import { useState } from 'react'
-import './App.css'
+import React from 'react';
+import PatientList from './components/PatientList';
+import './App.css';
+import AllPatients from './pages/AllPatients';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>Your implemenation goes here</div>
-    </>
-  )
+    <div className="App">
+      <h1>Patient Management System</h1>
+      <PatientsTable />
+    </div>
+  );
 }
 
-export default App
+export default App;
