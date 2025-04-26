@@ -1,111 +1,178 @@
-import React, { useState } from 'react';
-import axios from 'axios';
+import React, { useState, useEffect } from 'react';
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  TextField,
+  DialogActions,
+  Button,
+  MenuItem,
+} from '@mui/material';
+import { addPatient, updatePatient } from '../api';
 
-const PatientForm = ({ onPatientAdded }) => {
+const PatientForm = ({ patient, onClose }) => {
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    name: '',
     dateOfBirth: '',
-    status: 'Active'
+    status: 'active',
   });
-  const [errors, setErrors] = useState({});
+  const [errors, setErrors] = useState({
+    name: false,
+    dateOfBirth: false,
+    status: false,
+  });
+  const [touched, setTouched] = useState({
+    name: false,
+    dateOfBirth: false,
+    status: false,
+  });
+
+  useEffect(() => {
+    if (patient) {
+      setFormData({
+        name: patient.name,
+        dateOfBirth: patient.dateOfBirth.split('T')[0],
+        status: patient.status,
+      });
+      setTouched({
+        name: true,
+        dateOfBirth: true,
+        status: true,
+      });
+    }
+  }, [patient]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({
-      ...formData,
-      [name]: value
-    });
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+    validateField(name, value);
   };
 
-  const validate = () => {
-    const newErrors = {};
-    if (!formData.firstName.trim()) newErrors.firstName = 'First name is required';
-    if (!formData.lastName.trim()) newErrors.lastName = 'Last name is required';
-    if (!formData.dateOfBirth) newErrors.dateOfBirth = 'Date of birth is required';
+  const handleBlur = (e) => {
+    const { name } = e.target;
+    setTouched((prev) => ({
+      ...prev,
+      [name]: true,
+    }));
+    validateField(name, formData[name]);
+  };
+
+  const validateField = (name, value) => {
+    let isValid = true;
+    
+    if (name === 'name') {
+      isValid = value.trim() !== '';
+    } else if (name === 'dateOfBirth') {
+      isValid = value !== '';
+    } else if (name === 'status') {
+      isValid = value !== '';
+    }
+    
+    setErrors((prev) => ({
+      ...prev,
+      [name]: !isValid,
+    }));
+    
+    return isValid;
+  };
+
+  const validateForm = () => {
+    const newErrors = {
+      name: formData.name.trim() === '',
+      dateOfBirth: formData.dateOfBirth === '',
+      status: formData.status === '',
+    };
     
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    setTouched({
+      name: true,
+      dateOfBirth: true,
+      status: true,
+    });
+    
+    return !Object.values(newErrors).some(error => error);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validate()) return;
+  const handleSubmit = async () => {
+    if (!validateForm()) {
+      return;
+    }
     
     try {
-      await axios.post('/api/patients', formData);
-      setFormData({
-        firstName: '',
-        lastName: '',
-        dateOfBirth: '',
-        status: 'Active'
-      });
-      onPatientAdded();
+      if (patient) {
+        await updatePatient(patient.id, formData);
+      } else {
+        await addPatient(formData);
+      }
+      onClose();
     } catch (error) {
-      console.error('Error creating patient:', error);
+      console.error('Error saving patient:', error);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} className="patient-form">
-      <h2>Add New Patient</h2>
-      
-      <div className="form-group">
-        <label>
-          First Name:
-          <input
-            type="text"
-            name="firstName"
-            value={formData.firstName}
-            onChange={handleChange}
-          />
-          {errors.firstName && <span className="error">{errors.firstName}</span>}
-        </label>
-      </div>
-      
-      <div className="form-group">
-        <label>
-          Last Name:
-          <input
-            type="text"
-            name="lastName"
-            value={formData.lastName}
-            onChange={handleChange}
-          />
-          {errors.lastName && <span className="error">{errors.lastName}</span>}
-        </label>
-      </div>
-      
-      <div className="form-group">
-        <label>
-          Date of Birth:
-          <input
-            type="date"
-            name="dateOfBirth"
-            value={formData.dateOfBirth}
-            onChange={handleChange}
-          />
-          {errors.dateOfBirth && <span className="error">{errors.dateOfBirth}</span>}
-        </label>
-      </div>
-      
-      <div className="form-group">
-        <label>
-          Status:
-          <select
-            name="status"
-            value={formData.status}
-            onChange={handleChange}
-          >
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </label>
-      </div>
-      
-      <button type="submit">Add Patient</button>
-    </form>
+    <Dialog open onClose={onClose}>
+      <DialogTitle>{patient ? 'Edit Patient' : 'Add Patient'}</DialogTitle>
+      <DialogContent>
+        <TextField
+          label="Name"
+          name="name"
+          value={formData.name}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          fullWidth
+          margin="normal"
+          required
+          error={errors.name && touched.name}
+          helperText={errors.name && touched.name ? 'Name is required' : ''}
+        />
+        <TextField
+          label="Date of Birth"
+          type="date"
+          name="dateOfBirth"
+          value={formData.dateOfBirth}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          fullWidth
+          margin="normal"
+          slotProps={{
+            inputLabel: {
+              shrink: true,
+            },
+          }}          
+          required
+          error={errors.dateOfBirth && touched.dateOfBirth}
+          helperText={errors.dateOfBirth && touched.dateOfBirth ? 'Date of Birth is required' : ''}
+        />
+        <TextField
+          select
+          label="Status"
+          name="status"
+          value={formData.status}
+          onChange={handleChange}
+          onBlur={handleBlur}
+          fullWidth
+          margin="normal"
+          required
+          error={errors.status && touched.status}
+          helperText={errors.status && touched.status ? 'Status is required' : ''}
+        >
+          <MenuItem value="active">Active</MenuItem>
+          <MenuItem value="inactive">Inactive</MenuItem>
+        </TextField>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose} color="secondary">
+          Cancel
+        </Button>
+        <Button onClick={handleSubmit} variant="contained" color="primary">
+          {patient ? 'Update' : 'Add'}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 };
 
